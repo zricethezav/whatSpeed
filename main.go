@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -60,23 +61,35 @@ var (
 	downloadSizes = []int{350, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000}
 	// uploadSizes is in bytes!
 	uploadSizes = []int{262144, 524288, 1048576, 1572864, 2097152}
+	banner      = "whatSpeed v1.0.0, by zricethezav"
+	version     = "1.0.0"
 )
-
-const banner = `whatSpeed v1.0, by zricethezav`
 
 func main() {
 	var config *Config
+	v := flag.Bool("version", false, "outputs version number")
+	d := flag.Bool("download", false, "run download test only")
+	u := flag.Bool("upload", false, "run upload test only")
+	flag.Parse()
+	if *v {
+		fmt.Println(version)
+		return
+	}
 	fmt.Println(banner)
 	if err := xmlPls(speedTestConfigURL, &config); err != nil {
 		log.Fatal(err)
 	}
 	servers := giveMeServers()
 	nearestServer := nearestServerPls(config, servers)
-	if err := whatsMyDownloadSpeed(config, nearestServer); err != nil {
-		log.Fatal(err)
+	if !*u || (*d && *u) {
+		if err := whatsMyDownloadSpeed(config, nearestServer); err != nil {
+			log.Fatal(err)
+		}
 	}
-	if err := whatsMyUploadSpeed(config, nearestServer); err != nil {
-		log.Fatal(err)
+	if !*d || (*d && *u) {
+		if err := whatsMyUploadSpeed(config, nearestServer); err != nil {
+			log.Fatal(err)
+		}
 	}
 	return
 }

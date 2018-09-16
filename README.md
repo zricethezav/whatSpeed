@@ -2,8 +2,8 @@
   <img alt="whatSpeed" src="https://raw.githubusercontent.com/zricethezav/gifs/master/whatspeed.png" />
 </p>
 
-## whatSpeed tells you what speed
-This is a tiny application written in Go that will report your download and upload speeds by running tests again speedtest.net by Ookla (shoutout Ookla). The test works by downloading random images (literally np.random.random(500,500), like the image above) and measuring the time it takes for the downloads to complete. Similar test for uploading.  
+# whatSpeed tells you what speed
+This is a tiny application written in Go that will report your download and upload speeds by running tests again speedtest.net by Ookla. The test works by downloading random images (literally np.random.random(500,500), like the image above) from the nearest* speedtest server and measuring the time it takes for the downloads to complete. Similar test for uploading.  
 
 ```
 $ whatSpeed
@@ -26,3 +26,22 @@ avg: 145.63 mbps (download)
 23.251959471046728
 avg: 22.75 mbps (upload)
 ```
+
+\* Nearest meaning shortest GREAT CIRCLE DISTANCE between your client machine and a speedtest.net server. Calculated using the haversine forumula: https://en.wikipedia.org/wiki/Haversine_formula
+
+## Usage
+```
+Usage of ./whatSpeed:
+  -download
+        run download test only
+  -upload
+        run upload test only
+  -version
+        outputs version number
+```
+
+## Installing
+```
+go get -u github.com/zricethezav/whatSpeed
+```
+Or download from release binaries [here](https://github.com/zricethezav/whatSpeed/releases)
