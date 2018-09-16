@@ -6,6 +6,8 @@ package main
  */
 
 import (
+	"bytes"
+	"crypto/rand"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -17,7 +19,7 @@ import (
 	"time"
 )
 
-// Config is
+// Config contains the client configuration from /speedtest-config.php
 type Config struct {
 	Client struct {
 		Country string  `xml:"country,attr"`
@@ -28,12 +30,12 @@ type Config struct {
 	} `xml:"client"`
 }
 
-// Servers is
+// Servers contains Server(s)
 type Servers struct {
 	Servers []Server `xml:"servers>server"`
 }
 
-// Server is
+// Server is a speedtest server target the client (you) will be running tests against
 type Server struct {
 	URL     string  `xml:"url,attr"`
 	Name    string  `xml:"name,attr"`
@@ -47,7 +49,6 @@ type Server struct {
 
 var (
 	speedTestServerURLS = []string{
-		// default to use tls but add option for http
 		"https://www.speedtest.net/speedtest-servers-static.php",
 		"https://c.speedtest.net/speedtest-servers-static.php",
 		"https://www.speedtest.net/speedtest-servers.php",
@@ -55,7 +56,10 @@ var (
 	}
 	speedTestConfigURL         = "https://www.speedtest.net/speedtest-config.php"
 	earthRadius        float64 = 6378100
-	downloadSizes              = []int{350, 500, 750, 1000, 1500, 2000, 2500}
+	// downloadSizes is in pixels! ie. 350 == we gonna dl a 350x350px image
+	downloadSizes = []int{350, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000}
+	// uploadSizes is in bytes!
+	uploadSizes = []int{262144, 524288, 1048576, 1572864, 2097152}
 )
 
 const banner = `whatSpeed v1.0, by zricethezav`
@@ -71,7 +75,39 @@ func main() {
 	if err := whatsMyDownloadSpeed(config, nearestServer); err != nil {
 		log.Fatal(err)
 	}
+	if err := whatsMyUploadSpeed(config, nearestServer); err != nil {
+		log.Fatal(err)
+	}
 	return
+}
+
+// whatsMyUploadSpeed will tell you your upload speed, never stop looking up
+func whatsMyUploadSpeed(config *Config, nearestSever *Server) error {
+	client := &http.Client{}
+	var mbps float64
+	var mbpsSum float64
+	var mbpsArr []float64
+
+	for _, ulSize := range uploadSizes {
+		trash := make([]byte, ulSize)
+		rand.Read(trash)
+		start := time.Now()
+		resp, err := client.Post(nearestSever.URL, "application/x-www-form-urlencoded", bytes.NewReader(trash))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		mbps = (float64(ulSize*8) / float64(1000000)) / time.Now().Sub(start).Seconds()
+		fmt.Println(mbps)
+		mbpsSum += mbps
+		mbpsArr = append(mbpsArr, mbps)
+	}
+
+	// heres a q, why isnt avg in math?
+	fmt.Printf("avg: %.2f mbps (upload)\n", mbpsSum/float64(len(mbpsArr)))
+
+	return nil
+
 }
 
 // whatsMyDownloadSpeed will tell you your download speed, i hope its at least a gigabites
@@ -95,6 +131,7 @@ func whatsMyDownloadSpeed(config *Config, nearestSever *Server) error {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		mbps = (float64(len(body)*8) / float64(1000000)) / time.Now().Sub(start).Seconds()
 		fmt.Println(mbps)
@@ -102,8 +139,8 @@ func whatsMyDownloadSpeed(config *Config, nearestSever *Server) error {
 		mbpsArr = append(mbpsArr, mbps)
 	}
 
-	// heres a q, why isnt avg and median in stdlib?
-	fmt.Printf("avg: %.2f mbps\n", mbpsSum/float64(len(mbpsArr)))
+	// again... heres a q, why isnt avg in math?
+	fmt.Printf("avg: %.2f mbps (download)\n", mbpsSum/float64(len(mbpsArr)))
 
 	return nil
 }
