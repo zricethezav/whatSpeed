@@ -1,7 +1,8 @@
 package main
 
 /*
- * whatspeed is a tiny portable cli application written in go to test download/upload speeds
+ * whatspeed is a tiny portable cli application written in go to test download/upload speeds.
+ * the test runs against speedtest.net and calculates speed based on http downloads/uploads
  */
 
 import (
@@ -57,46 +58,54 @@ var (
 	downloadSizes              = []int{350, 500, 750, 1000, 1500, 2000, 2500}
 )
 
+const banner = `whatSpeed v1.0, by zricethezav`
+
 func main() {
 	var config *Config
-
+	fmt.Println(banner)
 	if err := xmlPls(speedTestConfigURL, &config); err != nil {
 		log.Fatal(err)
 	}
-
 	servers := giveMeServers()
 	nearestServer := nearestServerPls(config, servers)
-	_, err := whatsMyDownloadSpeed(config, nearestServer)
-	if err != nil {
+	if err := whatsMyDownloadSpeed(config, nearestServer); err != nil {
 		log.Fatal(err)
 	}
 	return
 }
 
 // whatsMyDownloadSpeed will tell you your download speed, i hope its at least a gigabites
-func whatsMyDownloadSpeed(config *Config, nearestSever *Server) (float64, error) {
+func whatsMyDownloadSpeed(config *Config, nearestSever *Server) error {
 	client := &http.Client{}
-	var mbs float64
+	var mbps float64
+	var mbpsSum float64
+	var mbpsArr []float64
 
 	for _, dlSize := range downloadSizes {
 		splitURL := strings.Split(nearestSever.URL, "/")
 		url := fmt.Sprintf("http:/%s/random%dx%d.jpg", strings.Join(splitURL[1:len(splitURL)-1], "/"), dlSize, dlSize)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		req.Header.Set("Cache-Control", "no-cache")
 		req.Header.Set("User-Agent", "whatSpeed")
 		start := time.Now()
 		resp, err := client.Do(req)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		body, err := ioutil.ReadAll(resp.Body)
-		mbs = (float64(len(body)*8) / float64(1000000)) / time.Now().Sub(start).Seconds()
-		fmt.Println(mbs)
+		mbps = (float64(len(body)*8) / float64(1000000)) / time.Now().Sub(start).Seconds()
+		fmt.Println(mbps)
+		mbpsSum += mbps
+		mbpsArr = append(mbpsArr, mbps)
 	}
-	return mbs, nil
+
+	// heres a q, why isnt avg and median in stdlib?
+	fmt.Printf("avg: %.2f mbps\n", mbpsSum/float64(len(mbpsArr)))
+
+	return nil
 }
 
 // xmlPls is a polite function that unmarshals your http response into xmlTarget
