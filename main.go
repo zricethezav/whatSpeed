@@ -6,11 +6,14 @@ package main
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 )
 
 // Config is
@@ -51,25 +54,49 @@ var (
 	}
 	speedTestConfigURL         = "https://www.speedtest.net/speedtest-config.php"
 	earthRadius        float64 = 6378100
+	downloadSizes              = []int{350, 500, 750, 1000, 1500, 2000, 2500}
 )
 
 func main() {
 	var config *Config
 
-	if err := xmlPls(speedTestConfigURL, config); err != nil {
+	if err := xmlPls(speedTestConfigURL, &config); err != nil {
 		log.Fatal(err)
 	}
 
 	servers := giveMeServers()
 	nearestServer := nearestServerPls(config, servers)
-	whatsMyDownloadSpeed(config, nearestServer)
+	_, err := whatsMyDownloadSpeed(config, nearestServer)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return
 }
 
 // whatsMyDownloadSpeed will tell you your download speed, i hope its at least a gigabites
-func whatsMyDownloadSpeed(config *Config, nearestSever *Server) float64 {
+func whatsMyDownloadSpeed(config *Config, nearestSever *Server) (float64, error) {
+	client := &http.Client{}
+	var mbs float64
 
-	return 0
+	for _, dlSize := range downloadSizes {
+		splitURL := strings.Split(nearestSever.URL, "/")
+		url := fmt.Sprintf("http:/%s/random%dx%d.jpg", strings.Join(splitURL[1:len(splitURL)-1], "/"), dlSize, dlSize)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return 0, err
+		}
+		req.Header.Set("Cache-Control", "no-cache")
+		req.Header.Set("User-Agent", "whatSpeed")
+		start := time.Now()
+		resp, err := client.Do(req)
+		if err != nil {
+			return 0, err
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		mbs = (float64(len(body)*8) / float64(1000000)) / time.Now().Sub(start).Seconds()
+		fmt.Println(mbs)
+	}
+	return mbs, nil
 }
 
 // xmlPls is a polite function that unmarshals your http response into xmlTarget
