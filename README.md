@@ -27,7 +27,7 @@ avg: 145.63 mbps (download)
 avg: 22.75 mbps (upload)
 ```
 
-\* Nearest meaning smallest GREAT CIRCLE DISTANCE between your client machine and a speedtest.net server. Calculated using the haversine forumula: https://en.wikipedia.org/wiki/Haversine_formula
+\* Nearest meaning smallest GREAT CIRCLE DISTANCE between your client machine and a speedtest.net server. Calculated using the haversine formula: https://en.wikipedia.org/wiki/Haversine_formula
 
 ## Usage
 ```
